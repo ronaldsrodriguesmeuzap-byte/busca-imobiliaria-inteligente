@@ -10,7 +10,7 @@ HEADERS = {
 }
 
 GOOGLE_API_KEY = "AIzaSyBan6uMfeFa_SqEcSP6U84TbsdTYyiqTYE"
-GOOGLE_CX = "7189b2c61cbee42d3"
+GOOGLE_CX = "6050198e7572e43b5"
 
 def delay():
     time.sleep(random.uniform(1, 3))
