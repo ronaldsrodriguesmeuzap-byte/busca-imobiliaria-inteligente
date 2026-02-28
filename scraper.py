@@ -1,5 +1,4 @@
 import requests
-from bs4 import BeautifulSoup
 import time
 import random
 import re
@@ -9,6 +8,9 @@ from datetime import datetime
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
+
+GOOGLE_API_KEY = "AIzaSyBan6uMfeFa_SqEcSP6U84TbsdTYyiqTYE"
+GOOGLE_CX = "7189b2c61cbee42d3"
 
 def delay():
     time.sleep(random.uniform(1, 3))
@@ -56,38 +58,37 @@ def calcular_score(imovel, area_ideal_min=90000, area_ideal_max=110000, preco_ma
 
     return score
 
-def scrape_olx(query, cidade):
+def buscar_google(query):
     resultados = []
     try:
-        q = query.replace(' ', '+')
-        url = f"https://sc.olx.com.br/regiao-de-criciuma-e-sul-catarinense/imoveis/terrenos-sitios-e-fazendas?q={q}"
-        resp = requests.get(url, headers=HEADERS, timeout=20)
-        soup = BeautifulSoup(resp.text, 'html.parser')
-        anuncios = soup.select('li[data-lurker-detail="list_id"]')[:10]
+        url = "https://www.googleapis.com/customsearch/v1"
+        params = {
+            "key": GOOGLE_API_KEY,
+            "cx": GOOGLE_CX,
+            "q": query,
+            "num": 10,
+            "gl": "br",
+            "hl": "pt"
+        }
+        resp = requests.get(url, params=params, timeout=20)
+        data = resp.json()
 
-        for a in anuncios:
-            try:
-                titulo = a.select_one('h2')
-                preco_el = a.select_one('span[aria-label*="preço"], .OLXad-list-item-price')
-                link_el = a.select_one('a')
-                descricao_el = a.select_one('p')
-
-                resultado = {
-                    'titulo': titulo.text.strip() if titulo else '',
-                    'preco': extrair_preco(preco_el.text if preco_el else ''),
-                    'area_m2': None,
-                    'cidade': cidade,
-                    'link': link_el['href'] if link_el else '',
-                    'telefone': None,
-                    'descricao': descricao_el.text.strip() if descricao_el else '',
-                    'fonte': 'OLX'
-                }
-                resultados.append(resultado)
-            except Exception:
-                continue
+        for item in data.get("items", []):
+            area_m2 = extrair_area_m2(item.get("snippet", ""))
+            preco = extrair_preco(item.get("snippet", ""))
+            resultado = {
+                "titulo": item.get("title", ""),
+                "descricao": item.get("snippet", ""),
+                "link": item.get("link", ""),
+                "preco": preco,
+                "area_m2": area_m2,
+                "telefone": None,
+                "fonte": item.get("displayLink", "")
+            }
+            resultados.append(resultado)
         delay()
     except Exception as e:
-        print(f"Erro OLX: {e}")
+        print(f"Erro Google Search: {e}")
     return resultados
 
 def filtrar(imoveis, area_min, area_max, preco_max):
@@ -118,7 +119,7 @@ def salvar_postgres(imoveis, db_url):
                 telefone VARCHAR(50),
                 link TEXT,
                 score INTEGER,
-                fonte VARCHAR(50),
+                fonte VARCHAR(100),
                 descricao TEXT,
                 data_coleta TIMESTAMP,
                 status_contato VARCHAR(20) DEFAULT 'novo'
@@ -142,4 +143,3 @@ def salvar_postgres(imoveis, db_url):
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar: {e}")
-
