@@ -21,7 +21,7 @@ SEARLO_URL = "https://api.searlo.tech/api/v1/search/web"
 GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def delay():
-    time.sleep(random.uniform(1, 3))
+    time.sleep(random.uniform(3, 6))
 
 def extrair_numero(texto):
     if not texto:
