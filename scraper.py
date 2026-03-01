@@ -9,8 +9,8 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
-GOOGLE_API_KEY = "AIzaSyBan6uMfeFa_SqEcSP6U84TbsdTYyiqTYE"
-GOOGLE_CX = "449cb1de4aca24d52"
+GOOGLE_API_KEY = "AIzaSyD6uBFWwEhj-zeENX2T7OTcuOnNBeiCwc0"
+GOOGLE_CX = "13d0c7b15bc1545de"
 
 def delay():
     time.sleep(random.uniform(1, 3))
