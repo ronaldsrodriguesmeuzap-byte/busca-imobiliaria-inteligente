@@ -142,19 +142,36 @@ def buscar_google(query):
 
         for item in data.get("organic", []):
             snippet = item.get("snippet", "")
+            link = item.get("link", "")
+
+            # Dados base do snippet
             area_m2 = extrair_area_m2(snippet)
             preco = extrair_preco(snippet)
+
+            # Enriquece com scraping da página
+            dados_scraping = scrape_anuncio(link) if link else None
+
+            if dados_scraping:
+                area_m2 = dados_scraping.get("area_m2") or area_m2
+                preco = dados_scraping.get("preco") or preco
+                descricao = dados_scraping.get("descricao") or snippet
+                telefone = dados_scraping.get("telefone")
+            else:
+                descricao = snippet
+                telefone = None
+
             resultado = {
                 "titulo": item.get("title", ""),
-                "descricao": snippet,
-                "link": item.get("link", ""),
+                "descricao": descricao,
+                "link": link,
                 "preco": preco,
                 "area_m2": area_m2,
-                "telefone": None,
+                "telefone": telefone,
                 "fonte": item.get("domain", "")
             }
             resultados.append(resultado)
-        delay()
+            delay()
+
     except Exception as e:
         print(f"Erro SEARLO Search: {e}")
     return resultados
