@@ -13,7 +13,7 @@ HEADERS = {
 }
 
 SEARLO_API_KEY = os.getenv("SEARLO_API_KEY")
-SEARLO_URL = "https://api.searlo.com/search"
+SEARLO_URL = "https://api.searlo.tech/api/v1/search/web"
 
 def delay():
     time.sleep(random.uniform(1, 3))
@@ -66,18 +66,22 @@ def buscar_google(query):
     try:
         async def _search():
             headers = {
-                "X-API-KEY": SEARLO_API_KEY,
+                "x-api-key": SEARLO_API_KEY,
                 "Content-Type": "application/json"
             }
-            payload = {"query": query, "num": 10}
+            params = {
+                "q": query,
+                "limit": 10,
+                "gl": "br"
+            }
             async with httpx.AsyncClient(timeout=30) as client:
-                response = await client.post(SEARLO_URL, headers=headers, json=payload)
+                response = await client.get(SEARLO_URL, headers=headers, params=params)
                 response.raise_for_status()
                 return response.json()
 
         data = asyncio.run(_search())
 
-        for item in data.get("organic", []):
+        for item in data.get("items", []):
             snippet = item.get("snippet", "")
             area_m2 = extrair_area_m2(snippet)
             preco = extrair_preco(snippet)
