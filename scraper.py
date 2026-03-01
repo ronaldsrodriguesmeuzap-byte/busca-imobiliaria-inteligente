@@ -7,6 +7,9 @@ import re
 import os
 import psycopg2
 from datetime import datetime
+from bs4 import BeautifulSoup
+from groq import Groq
+
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
@@ -14,6 +17,7 @@ HEADERS = {
 
 SEARLO_API_KEY = os.getenv("SEARLO_API_KEY")
 SEARLO_URL = "https://api.searlo.tech/api/v1/search/web"
+GROQ_API_KEY = os.getenv("GROQ_API_KEY")
 
 def delay():
     time.sleep(random.uniform(1, 3))
