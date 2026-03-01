@@ -101,18 +101,30 @@ Texto da página:
 
 Retorne APENAS um JSON válido com esta estrutura:
 {{
-  "preco": <valor numérico em reais, sem pontos ou vírgulas. Ex: 950000>,
-  "area_m2": <área convertida para m². Se vier em hectares multiplique por 10000. Ex: 10 hectares = 100000>,
-  "descricao": <texto descritivo do imóvel, ignorar menus e navegação>,
-  "telefone": <telefone de contato no formato original ou null>
+  "preco": <valor numérico em reais ou null>,
+  "area_m2": <área em m² como número ou null>,
+  "descricao": <texto descritivo do imóvel ou null>,
+  "telefone": <telefone de contato ou null>
 }}
 
-Regras obrigatórias:
-- preco: número inteiro puro. "R$ 1.200.000" → 1200000. "R$ 350.000" → 350000
-- area_m2: número inteiro em m². "9,3 hectares" → 93000. "100.000 m²" → 100000
-- Se o texto for uma página de listagem com vários imóveis, extraia os dados do primeiro imóvel relevante
-- Se não encontrar o campo com certeza, retorne null
-- NUNCA retorne strings com "R$" ou "m²", apenas números
+Regras obrigatórias para PRECO:
+- Procure por padrões como "R$ 350.000", "R$ 1.200.000", "350000", "1200000"
+- O preço é sempre um valor ALTO, acima de 50.000
+- Remova pontos e vírgulas: "R$ 350.000" → 350000
+- NUNCA confunda área ou metragem com preço
+- Números como 9, 9.3, 10, 93 NÃO são preços — são áreas
+- Se não encontrar preço com certeza absoluta, retorne null
+
+Regras obrigatórias para AREA_M2:
+- Procure por "hectares", "ha", "m²", "metros quadrados"
+- Converta sempre para m²: 1 hectare = 10000 m²
+- "9,3 hectares" → 93000
+- "100.000 m²" → 100000
+- Se não encontrar área com certeza, retorne null
+
+Regras gerais:
+- Se o texto for página de listagem com vários imóveis, extraia dados do primeiro imóvel relevante
+- NUNCA retorne strings com "R$" ou "m²", apenas números inteiros
 - Retorne APENAS o JSON, sem explicações, sem markdown
 """
 
