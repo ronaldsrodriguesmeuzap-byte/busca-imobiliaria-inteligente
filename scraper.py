@@ -106,14 +106,19 @@ Texto da página:
 
 Retorne APENAS um JSON válido com esta estrutura:
 {{
+  "is_imovel": <true se o texto for um anúncio de venda de imóvel, false caso contrário>,
   "preco": <valor numérico em reais ou null>,
   "area_m2": <área em m² como número ou null>,
   "descricao": <texto descritivo do imóvel ou null>,
   "telefone": <telefone de contato ou null>
 }}
 
+Regras obrigatórias para IS_IMOVEL:
+- true apenas se for anúncio de venda ou locação de imóvel
+- false para notícias, blogs, rádios, prefeituras, listas de busca sem anúncio claro
+
 Regras obrigatórias para PRECO:
-- Procure por padrões como "R$ 350.000", "R$ 1.200.000", "350000", "1200000"
+- Procure por padrões como "R$ 350.000", "R$ 1.200.000"
 - O preço é sempre um valor ALTO, acima de 50.000
 - Remova pontos e vírgulas: "R$ 350.000" → 350000
 - NUNCA confunda área ou metragem com preço
@@ -128,7 +133,7 @@ Regras obrigatórias para AREA_M2:
 - Se não encontrar área com certeza, retorne null
 
 Regras gerais:
-- Se o texto for página de listagem com vários imóveis, extraia dados do primeiro imóvel relevante
+- Se o texto for página de listagem com vários imóveis, extraia dados do primeiro imóvel relevante e is_imovel = true
 - NUNCA retorne strings com "R$" ou "m²", apenas números inteiros
 - Retorne APENAS o JSON, sem explicações, sem markdown
 """
@@ -196,6 +201,7 @@ def buscar_google(query):
                 "area_m2": area_m2,
                 "telefone": telefone,
                 "fotos": dados_scraping.get("fotos", []) if dados_scraping else [],
+                "is_imovel": dados_scraping.get("is_imovel", True) if dados_scraping else True,
                 "fonte": item.get("domain", "")
             }
             resultados.append(resultado)
@@ -209,6 +215,8 @@ def filtrar(imoveis, area_min, area_max, preco_max):
     validos = []
     for im in imoveis:
         if not im.get('link'):
+            continue
+        if not im.get('is_imovel', True):
             continue
         preco = im.get('preco')
         area = im.get('area_m2')
