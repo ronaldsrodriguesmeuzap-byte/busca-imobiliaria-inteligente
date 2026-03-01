@@ -1,7 +1,10 @@
 import requests
+import httpx
+import asyncio
 import time
 import random
 import re
+import os
 import psycopg2
 from datetime import datetime
 
@@ -9,8 +12,8 @@ HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
 }
 
-GOOGLE_API_KEY = "AIzaSyA0c2RrkBM4Pn8YzOEakCVHC0QqIHi9aZA"
-GOOGLE_CX = "13d0c7b15bc1545de"
+SEARLO_API_KEY = os.getenv("SEARLO_API_KEY")
+SEARLO_URL = "https://api.searlo.tech/api/v1/search/web"
 
 def delay():
     time.sleep(random.uniform(1, 3))
@@ -61,34 +64,40 @@ def calcular_score(imovel, area_ideal_min=90000, area_ideal_max=110000, preco_ma
 def buscar_google(query):
     resultados = []
     try:
-        url = "https://www.googleapis.com/customsearch/v1"
-        params = {
-            "key": GOOGLE_API_KEY,
-            "cx": GOOGLE_CX,
-            "q": query,
-            "num": 10,
-            "gl": "br",
-            "hl": "pt"
-        }
-        resp = requests.get(url, params=params, timeout=20)
-        data = resp.json()
+        async def _search():
+            headers = {
+                "x-api-key": SEARLO_API_KEY,
+                "Content-Type": "application/json"
+            }
+            params = {
+                "q": query,
+                "limit": 10,
+                "gl": "br"
+            }
+            async with httpx.AsyncClient(timeout=30) as client:
+                response = await client.get(SEARLO_URL, headers=headers, params=params)
+                response.raise_for_status()
+                return response.json()
 
-        for item in data.get("items", []):
-            area_m2 = extrair_area_m2(item.get("snippet", ""))
-            preco = extrair_preco(item.get("snippet", ""))
+        data = asyncio.run(_search())
+
+        for item in data.get("organic", []):
+            snippet = item.get("snippet", "")
+            area_m2 = extrair_area_m2(snippet)
+            preco = extrair_preco(snippet)
             resultado = {
                 "titulo": item.get("title", ""),
-                "descricao": item.get("snippet", ""),
+                "descricao": snippet,
                 "link": item.get("link", ""),
                 "preco": preco,
                 "area_m2": area_m2,
                 "telefone": None,
-                "fonte": item.get("displayLink", "")
+                "fonte": item.get("domain", "")
             }
             resultados.append(resultado)
         delay()
     except Exception as e:
-        print(f"Erro Google Search: {e}")
+        print(f"Erro SEARLO Search: {e}")
     return resultados
 
 def filtrar(imoveis, area_min, area_max, preco_max):
