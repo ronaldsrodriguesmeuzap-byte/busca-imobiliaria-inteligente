@@ -73,37 +73,47 @@ def scrape_anuncio(url):
 
         soup = BeautifulSoup(response.text, 'lxml')
 
+        # Extrai fotos antes de limpar o HTML
+        fotos = []
+        for img in soup.find_all('img'):
+            src = img.get('src') or img.get('data-src') or img.get('data-lazy')
+            if src and any(ext in src.lower() for ext in ['.jpg', '.jpeg', '.png', '.webp']):
+                if len(src) > 20:
+                    fotos.append(src)
+        fotos = list(dict.fromkeys(fotos))[:10]  # remove duplicatas, máximo 10
+
         # Remove elementos desnecessários
         for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'iframe']):
             tag.decompose()
 
         texto = soup.get_text(separator=' ', strip=True)
         texto = ' '.join(texto.split())
-        texto = texto[:4000]  # Limita para não estourar tokens
+        texto = texto[:4000]
 
         client = Groq(api_key=GROQ_API_KEY)
 
         prompt = f"""
-Você é um extrator de dados de anúncios imobiliários.
-Analise o texto abaixo e extraia as informações em JSON.
+Você é um extrator de dados de anúncios imobiliários brasileiros.
+Analise o texto abaixo e extraia as informações solicitadas.
 
-Texto do anúncio:
+Texto da página:
 {texto}
 
 Retorne APENAS um JSON válido com esta estrutura:
 {{
-  "preco": <número em reais ou null>,
-  "area_m2": <área em m² como número ou null>,
-  "descricao": <descrição completa do imóvel ou null>,
-  "telefone": <telefone de contato ou null>,
-  "fotos": []
+  "preco": <valor numérico em reais, sem pontos ou vírgulas. Ex: 950000>,
+  "area_m2": <área convertida para m². Se vier em hectares multiplique por 10000. Ex: 10 hectares = 100000>,
+  "descricao": <texto descritivo do imóvel, ignorar menus e navegação>,
+  "telefone": <telefone de contato no formato original ou null>
 }}
 
-Regras:
-- preco deve ser número puro (ex: 950000, não "R$ 950.000")
-- area_m2 deve ser em m² (converter hectares: 1ha = 10000m²)
-- Se não encontrar o campo, retorne null
-- Retorne APENAS o JSON, sem explicações
+Regras obrigatórias:
+- preco: número inteiro puro. "R$ 1.200.000" → 1200000. "R$ 350.000" → 350000
+- area_m2: número inteiro em m². "9,3 hectares" → 93000. "100.000 m²" → 100000
+- Se o texto for uma página de listagem com vários imóveis, extraia os dados do primeiro imóvel relevante
+- Se não encontrar o campo com certeza, retorne null
+- NUNCA retorne strings com "R$" ou "m²", apenas números
+- Retorne APENAS o JSON, sem explicações, sem markdown
 """
 
         resposta = client.chat.completions.create(
@@ -114,6 +124,7 @@ Regras:
 
         conteudo = resposta.choices[0].message.content.strip()
         dados = json.loads(conteudo)
+        dados['fotos'] = fotos  # adiciona fotos extraídas pelo BeautifulSoup
         return dados
 
     except Exception as e:
