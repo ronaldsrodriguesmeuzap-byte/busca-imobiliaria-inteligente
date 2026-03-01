@@ -70,6 +70,11 @@ def scrape_anuncio(url):
     try:
         response = requests.get(url, headers=HEADERS, timeout=20)
         response.raise_for_status()
+        
+        # Detecta bloqueio Cloudflare
+        if 'just a moment' in response.text.lower() or 'enable javascript and cookies' in response.text.lower():
+            print(f"Cloudflare bloqueou: {url}")
+            return None
 
         soup = BeautifulSoup(response.text, 'lxml')
 
