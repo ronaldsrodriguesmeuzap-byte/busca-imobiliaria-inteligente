@@ -178,6 +178,7 @@ def buscar_google(query):
                 "preco": preco,
                 "area_m2": area_m2,
                 "telefone": telefone,
+                "fotos": dados_scraping.get("fotos", []) if dados_scraping else [],
                 "fonte": item.get("domain", "")
             }
             resultados.append(resultado)
@@ -217,6 +218,7 @@ def salvar_postgres(imoveis, db_url):
                 score INTEGER,
                 fonte VARCHAR(100),
                 descricao TEXT,
+                fotos TEXT,
                 data_coleta TIMESTAMP,
                 status_contato VARCHAR(20) DEFAULT 'novo'
             )
@@ -227,12 +229,14 @@ def salvar_postgres(imoveis, db_url):
             preco_ha = (preco / (area / 10000)) if area and preco else None
             cur.execute("""
                 INSERT INTO rural_opportunities 
-                (cidade, area_m2, preco, preco_por_hectare, telefone, link, score, fonte, descricao, data_coleta)
-                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
+                (cidade, area_m2, preco, preco_por_hectare, telefone, link, score, fonte, descricao, fotos, data_coleta)
+                VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
             """, (
                 im.get('cidade'), area, preco, preco_ha,
                 im.get('telefone'), im.get('link'), im.get('score', 0),
-                im.get('fonte'), im.get('descricao'), datetime.now()
+                im.get('fonte'), im.get('descricao'),
+                json.dumps(im.get('fotos', [])),
+                datetime.now()
             ))
         conn.commit()
         cur.close()
