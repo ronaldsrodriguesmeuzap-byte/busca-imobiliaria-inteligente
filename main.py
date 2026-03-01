@@ -6,7 +6,7 @@ from scraper import buscar_google, filtrar, calcular_score, salvar_postgres
 
 app = FastAPI()
 
-DB_URL = "postgresql://postgres:AIzaSyBan6uMfeFa_SqEcSP6U84TbsdTYyiqTYE@postgres:5432/busca_imobiliaria_inteligente"
+DB_URL = "postgresql://postgres:dgSwyEqtRNbiJaNMtLfFQrfHOaWTrIBm@postgres:5432/busca_imobiliaria_inteligente"
 
 class QueryItem(BaseModel):
     query: str
