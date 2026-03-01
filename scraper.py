@@ -5,6 +5,7 @@ import time
 import random
 import re
 import os
+import json
 import psycopg2
 from datetime import datetime
 from bs4 import BeautifulSoup
@@ -64,6 +65,60 @@ def calcular_score(imovel, area_ideal_min=90000, area_ideal_max=110000, preco_ma
         score += 20
 
     return score
+
+def scrape_anuncio(url):
+    try:
+        response = requests.get(url, headers=HEADERS, timeout=20)
+        response.raise_for_status()
+
+        soup = BeautifulSoup(response.text, 'lxml')
+
+        # Remove elementos desnecessários
+        for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'iframe']):
+            tag.decompose()
+
+        texto = soup.get_text(separator=' ', strip=True)
+        texto = ' '.join(texto.split())
+        texto = texto[:4000]  # Limita para não estourar tokens
+
+        client = Groq(api_key=GROQ_API_KEY)
+
+        prompt = f"""
+Você é um extrator de dados de anúncios imobiliários.
+Analise o texto abaixo e extraia as informações em JSON.
+
+Texto do anúncio:
+{texto}
+
+Retorne APENAS um JSON válido com esta estrutura:
+{{
+  "preco": <número em reais ou null>,
+  "area_m2": <área em m² como número ou null>,
+  "descricao": <descrição completa do imóvel ou null>,
+  "telefone": <telefone de contato ou null>,
+  "fotos": []
+}}
+
+Regras:
+- preco deve ser número puro (ex: 950000, não "R$ 950.000")
+- area_m2 deve ser em m² (converter hectares: 1ha = 10000m²)
+- Se não encontrar o campo, retorne null
+- Retorne APENAS o JSON, sem explicações
+"""
+
+        resposta = client.chat.completions.create(
+            model="llama-3.1-8b-instant",
+            messages=[{"role": "user", "content": prompt}],
+            temperature=0
+        )
+
+        conteudo = resposta.choices[0].message.content.strip()
+        dados = json.loads(conteudo)
+        return dados
+
+    except Exception as e:
+        print(f"Erro ao scraping {url}: {e}")
+        return None
 
 def buscar_google(query):
     resultados = []
