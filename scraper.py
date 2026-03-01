@@ -81,7 +81,7 @@ def buscar_google(query):
 
         data = asyncio.run(_search())
 
-        for item in data.get("items", []):
+        for item in data.get("organic", []):
             snippet = item.get("snippet", "")
             area_m2 = extrair_area_m2(snippet)
             preco = extrair_preco(snippet)
