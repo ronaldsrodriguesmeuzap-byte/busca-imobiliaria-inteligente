@@ -143,3 +143,19 @@ def salvar_postgres(imoveis, db_url):
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar: {e}")
+
+def buscar_google_debug(query):
+    import json
+    url = "https://www.googleapis.com/customsearch/v1"
+    params = {
+        "key": GOOGLE_API_KEY,
+        "cx": GOOGLE_CX,
+        "q": query,
+        "num": 10,
+        "gl": "br",
+        "hl": "pt"
+    }
+    resp = requests.get(url, params=params, timeout=20)
+    print("Status:", resp.status_code)
+    print("Response:", resp.text[:500])
+    return resp.json()
