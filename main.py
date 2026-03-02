@@ -2,7 +2,7 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import uvicorn
-from scraper import buscar_google, filtrar, calcular_score, salvar_postgres
+from scraper import buscar_google, filtrar, calcular_score, salvar_postgres, scrape_anuncio
 
 app = FastAPI()
 
