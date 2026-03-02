@@ -10,8 +10,6 @@ import psycopg2
 from datetime import datetime
 from bs4 import BeautifulSoup
 from groq import Groq
-from scraper import buscar_google, filtrar, calcular_score, salvar_postgres, scrape_anuncio, extrair_dados_tavily
-
 
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36"
