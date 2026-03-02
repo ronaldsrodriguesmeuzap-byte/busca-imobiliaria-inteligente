@@ -75,9 +75,7 @@ def scrape_anuncio(url):
         if 'just a moment' in response.text.lower() or 'enable javascript and cookies' in response.text.lower():
             print(f"Cloudflare bloqueou: {url}")
             return None
-
         soup = BeautifulSoup(response.text, 'lxml')
-
         # Extrai fotos antes de limpar o HTML
         fotos = []
         for img in soup.find_all('img'):
@@ -86,37 +84,35 @@ def scrape_anuncio(url):
                 if len(src) > 20:
                     fotos.append(src)
         fotos = list(dict.fromkeys(fotos))[:10]  # remove duplicatas, máximo 10
-
         # Remove elementos desnecessários
         for tag in soup(['script', 'style', 'nav', 'footer', 'header', 'iframe']):
             tag.decompose()
-
         texto = soup.get_text(separator=' ', strip=True)
         texto = ' '.join(texto.split())
         texto = texto[:4000]
-
         client = Groq(api_key=GROQ_API_KEY)
-
         prompt = f"""
 Você é um extrator de dados de anúncios imobiliários brasileiros.
 Analise o texto abaixo e extraia as informações solicitadas.
-
 Texto da página:
 {texto}
-
 Retorne APENAS um JSON válido com esta estrutura:
 {{
   "is_imovel": <true se o texto for um anúncio de venda de imóvel, false caso contrário>,
+  "titulo": <título do anúncio ou nome do imóvel como string, ou null>,
   "preco": <valor numérico em reais ou null>,
   "area_m2": <área em m² como número ou null>,
   "descricao": <texto descritivo do imóvel ou null>,
   "telefone": <telefone de contato ou null>
 }}
-
 Regras obrigatórias para IS_IMOVEL:
 - true apenas se for anúncio de venda ou locação de imóvel
 - false para notícias, blogs, rádios, prefeituras, listas de busca sem anúncio claro
-
+Regras obrigatórias para TITULO:
+- Extraia o título principal do anúncio
+- Exemplos: "Sítio 12 hectares em Rio do Oeste SC", "Terreno Rural à Venda - Araranguá"
+- Se não encontrar título claro, crie um resumido com tipo + área + cidade
+- Máximo 100 caracteres
 Regras obrigatórias para PRECO:
 - Procure por padrões como "R$ 350.000", "R$ 1.200.000"
 - O preço é sempre um valor ALTO, acima de 50.000
@@ -124,31 +120,26 @@ Regras obrigatórias para PRECO:
 - NUNCA confunda área ou metragem com preço
 - Números como 9, 9.3, 10, 93 NÃO são preços — são áreas
 - Se não encontrar preço com certeza absoluta, retorne null
-
 Regras obrigatórias para AREA_M2:
 - Procure por "hectares", "ha", "m²", "metros quadrados"
 - Converta sempre para m²: 1 hectare = 10000 m²
 - "9,3 hectares" → 93000
 - "100.000 m²" → 100000
 - Se não encontrar área com certeza, retorne null
-
 Regras gerais:
 - Se o texto for página de listagem com vários imóveis, extraia dados do primeiro imóvel relevante e is_imovel = true
 - NUNCA retorne strings com "R$" ou "m²", apenas números inteiros
 - Retorne APENAS o JSON, sem explicações, sem markdown
 """
-
         resposta = client.chat.completions.create(
             model="llama-3.1-8b-instant",
             messages=[{"role": "user", "content": prompt}],
             temperature=0
         )
-
         conteudo = resposta.choices[0].message.content.strip()
         dados = json.loads(conteudo)
         dados['fotos'] = fotos  # adiciona fotos extraídas pelo BeautifulSoup
         return dados
-
     except Exception as e:
         print(f"Erro ao scraping {url}: {e}")
         return None
