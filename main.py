@@ -24,23 +24,23 @@ class EstruturarRequest(BaseModel):
 def estruturar(request: EstruturarRequest):
     todos = []
     for item in request.itens:
-    dados = extrair_dados_tavily(item.titulo, item.content)
-    if not dados or not isinstance(dados, dict):
-        # Usa dados mínimos do próprio Tavily sem Groq
-        resultado = {
-            "titulo": item.titulo,
-            "descricao": item.content[:200],
-            "link": item.link,
-            "preco": None,
-            "area_m2": None,
-            "telefone": None,
-            "fotos": [],
-            "is_imovel": True,
-            "fonte": item.link.split("/")[2] if item.link else "",
-            "cidade": item.cidade
-        }
-        todos.append(resultado)
-        continue
+        dados = extrair_dados_tavily(item.titulo, item.content)
+        if not dados or not isinstance(dados, dict):
+            # Usa dados mínimos do próprio Tavily sem Groq
+            resultado = {
+                "titulo": item.titulo,
+                "descricao": item.content[:200],
+                "link": item.link,
+                "preco": None,
+                "area_m2": None,
+                "telefone": None,
+                "fotos": [],
+                "is_imovel": True,
+                "fonte": item.link.split("/")[2] if item.link else "",
+                "cidade": item.cidade
+            }
+            todos.append(resultado)
+            continue
         resultado = {
             "titulo": item.titulo,
             "descricao": dados.get("descricao") or item.content[:200],
