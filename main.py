@@ -2,11 +2,56 @@ from fastapi import FastAPI
 from pydantic import BaseModel
 from typing import List
 import uvicorn
-from scraper import buscar_google, filtrar, calcular_score, salvar_postgres, scrape_anuncio
+from scraper import filtrar, calcular_score, salvar_postgres, extrair_dados_tavily
 
 app = FastAPI()
-
 DB_URL = "postgresql://postgres:dgSwyEqtRNbiJaNMtLfFQrfHOaWTrIBm@postgres:5432/busca_imobiliaria_inteligente"
+
+class TavilyItem(BaseModel):
+    titulo: str
+    link: str
+    content: str
+    cidade: str
+
+class EstruturarRequest(BaseModel):
+    itens: List[TavilyItem]
+    area_min: float
+    area_max: float
+    preco_min: float
+    preco_max: float
+
+@app.post("/estruturar")
+def estruturar(request: EstruturarRequest):
+    todos = []
+    for item in request.itens:
+        dados = extrair_dados_tavily(item.titulo, item.content)
+        if not dados:
+            continue
+        resultado = {
+            "titulo": item.titulo,
+            "descricao": dados.get("descricao") or item.content[:200],
+            "link": item.link,
+            "preco": dados.get("preco"),
+            "area_m2": dados.get("area_m2"),
+            "telefone": dados.get("telefone"),
+            "fotos": [],
+            "is_imovel": dados.get("is_imovel", True),
+            "fonte": item.link.split("/")[2] if item.link else "",
+            "cidade": item.cidade
+        }
+        todos.append(resultado)
+
+    validos = filtrar(todos, request.area_min, request.area_max, request.preco_max)
+    for im in validos:
+        im["score"] = calcular_score(im)
+    validos.sort(key=lambda x: x.get("score", 0), reverse=True)
+    salvar_postgres(validos, DB_URL)
+
+    return {
+        "total_encontrado": len(todos),
+        "total_valido": len(validos),
+        "resultados": validos
+    }
 
 class ScrapeRequest(BaseModel):
     urls: List[str]
