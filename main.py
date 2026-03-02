@@ -41,7 +41,7 @@ def estruturar(request: EstruturarRequest):
         }
         todos.append(resultado)
 
-    validos = filtrar(todos, request.area_min, request.area_max, request.preco_max)
+    validos = [im for im in todos if im.get('is_imovel', True) and im.get('link')]
     for im in validos:
         im["score"] = calcular_score(im)
     validos.sort(key=lambda x: x.get("score", 0), reverse=True)
