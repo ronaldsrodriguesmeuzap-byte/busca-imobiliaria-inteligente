@@ -8,6 +8,47 @@ app = FastAPI()
 
 DB_URL = "postgresql://postgres:dgSwyEqtRNbiJaNMtLfFQrfHOaWTrIBm@postgres:5432/busca_imobiliaria_inteligente"
 
+class ScrapeRequest(BaseModel):
+    urls: List[str]
+    cidade: str
+    area_min: float
+    area_max: float
+    preco_min: float
+    preco_max: float
+
+@app.post("/scrape")
+def scrape(request: ScrapeRequest):
+    todos = []
+    for url in request.urls:
+        dados = scrape_anuncio(url)
+        if not dados:
+            continue
+        resultado = {
+            "titulo": "",
+            "descricao": dados.get("descricao") or "",
+            "link": url,
+            "preco": dados.get("preco"),
+            "area_m2": dados.get("area_m2"),
+            "telefone": dados.get("telefone"),
+            "fotos": dados.get("fotos", []),
+            "is_imovel": dados.get("is_imovel", True),
+            "fonte": url.split("/")[2] if url else "",
+            "cidade": request.cidade
+        }
+        todos.append(resultado)
+
+    validos = filtrar(todos, request.area_min, request.area_max, request.preco_max)
+    for im in validos:
+        im["score"] = calcular_score(im)
+    validos.sort(key=lambda x: x.get("score", 0), reverse=True)
+    salvar_postgres(validos, DB_URL)
+
+    return {
+        "total_encontrado": len(todos),
+        "total_valido": len(validos),
+        "resultados": validos
+    }
+
 class QueryItem(BaseModel):
     query: str
     cidade: str
