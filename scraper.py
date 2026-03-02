@@ -10,6 +10,7 @@ import psycopg2
 from datetime import datetime
 from bs4 import BeautifulSoup
 from groq import Groq
+from scraper import buscar_google, filtrar, calcular_score, salvar_postgres, scrape_anuncio, extrair_dados_tavily
 
 
 HEADERS = {
@@ -259,3 +260,74 @@ def salvar_postgres(imoveis, db_url):
         conn.close()
     except Exception as e:
         print(f"Erro ao salvar: {e}")
+
+def extrair_dados_tavily(titulo: str, content: str):
+    """
+    Extrai dados estruturados do snippet/content retornado pelo Tavily.
+    Não faz scraping — usa apenas o texto já disponível.
+    """
+    try:
+        texto = f"Título: {titulo}\n\nConteúdo: {content}"
+        texto = texto[:3000]
+
+        client = Groq(api_key=GROQ_API_KEY)
+        prompt = f"""Você é um extrator de dados de anúncios imobiliários brasileiros.
+Analise o texto abaixo e extraia as informações em JSON.
+
+Texto:
+{texto}
+
+Retorne APENAS um JSON válido com esta estrutura:
+{{
+  "is_imovel": <true se for anúncio de venda ou locação de imóvel, false caso contrário>,
+  "preco": <valor numérico em reais ou null>,
+  "area_m2": <área em m² como número ou null>,
+  "descricao": <descrição resumida do imóvel em até 200 caracteres ou null>,
+  "telefone": <telefone de contato ou null>
+}}
+
+Regras obrigatórias para IS_IMOVEL:
+- true apenas se for anúncio de venda ou locação de imóvel
+- false para notícias, blogs, listas sem anúncio claro, sites governamentais
+
+Regras obrigatórias para PRECO:
+- Procure por padrões como "R$ 350.000", "R$ 1.200.000", "350000"
+- O preço é sempre um valor ALTO, acima de 50.000
+- Remova pontos e vírgulas: "R$ 350.000" → 350000
+- NUNCA confunda área ou metragem com preço
+- Se não encontrar preço com certeza, retorne null
+
+Regras obrigatórias para AREA_M2:
+- Procure por "hectares", "ha", "m²", "metros quadrados"
+- Converta sempre para m²: 1 hectare = 10000 m²
+- "9,3 hectares" → 93000
+- Se não encontrar área com certeza, retorne null
+
+Regras gerais:
+- NUNCA retorne strings com "R$" ou "m²", apenas números inteiros
+- Retorne APENAS o JSON, sem explicações, sem markdown
+"""
+        for tentativa in range(3):
+            try:
+                resposta = client.chat.completions.create(
+                    model="llama-3.1-8b-instant",
+                    messages=[{"role": "user", "content": prompt}],
+                    temperature=0
+                )
+                break
+            except Exception as e:
+                if '429' in str(e) and tentativa < 2:
+                    import time
+                    time.sleep(15)
+                    continue
+                raise e
+
+        conteudo = resposta.choices[0].message.content.strip()
+        # Remove markdown se vier
+        conteudo = conteudo.replace('```json', '').replace('```', '').strip()
+        dados = json.loads(conteudo)
+        return dados
+
+    except Exception as e:
+        print(f"Erro ao extrair dados Tavily: {e}")
+        return None
